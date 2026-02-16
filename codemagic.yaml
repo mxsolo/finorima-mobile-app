@@ -19,7 +19,8 @@ workflows:
       - name: Build Debug iOS App
         script: |
           xcodebuild \
-            -scheme FinorimaMobileApp \
+            -workspace Universal.xcworkspace \
+            -scheme Universal \
             -configuration Debug \
             clean build
     artifacts:
