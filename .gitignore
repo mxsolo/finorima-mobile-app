@@ -1,0 +1,7 @@
+# Flutter/Dart build
+/build/
+/.dart_tool/
+/.idea/
+/.packages
+pubspec.lock
+**/GeneratedPluginRegistrant.*
