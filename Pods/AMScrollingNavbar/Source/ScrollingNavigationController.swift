@@ -179,6 +179,7 @@ open class ScrollingNavigationController: UINavigationController, UIGestureRecog
   open fileprivate(set) var gestureRecognizer: UIPanGestureRecognizer?
   fileprivate var sourceTabBar: TabBarMock?
   fileprivate var previousOrientation: UIDeviceOrientation = UIDevice.current.orientation
+  fileprivate var savedNavBarTintColor: UIColor?
   var delayDistance: CGFloat = 0
   var maxDelay: CGFloat = 0
   var scrollableView: UIView?
@@ -186,6 +187,7 @@ open class ScrollingNavigationController: UINavigationController, UIGestureRecog
   var scrollSpeedFactor: CGFloat = 1
   var collapseDirectionFactor: CGFloat = 1 // Used to determine the sign of content offset depending of collapse direction
   var previousState: NavigationBarState = .expanded // Used to mark the state before the app goes in background
+  var scrollSearchBar: Bool = false
   
   public var isTopViewControllerExtendedUnderNavigationBar: Bool {
     guard let topViewController = topViewController, topViewController.edgesForExtendedLayout.contains(.top) else {
@@ -205,9 +207,11 @@ open class ScrollingNavigationController: UINavigationController, UIGestureRecog
    - parameter scrollSpeedFactor : This factor determines the speed of the scrolling content toward the navigation bar animation
    - parameter collapseDirection : The direction of scrolling that the navigation bar should be collapsed
    - parameter additionalOffset : The additional distance that the navigation bar can move up after reaching the top of the screen. Defaults to 0
+   - parameter scrollSearchBar : Determines whether or not the navigation bar should scroll when the search bar is visible. Defaults to false
    - parameter followers: An array of `NavigationBarFollower`s that will follow the navbar. The wrapper holds the direction that the view will follow
    */
-  open func followScrollView(_ scrollableView: UIView, delay: Double = 0, scrollSpeedFactor: Double = 1, collapseDirection: NavigationBarCollapseDirection = .scrollDown, additionalOffset: CGFloat = 0, followers: [NavigationBarFollower] = []) {
+  open func followScrollView(_ scrollableView: UIView, delay: Double = 0, scrollSpeedFactor: Double = 1, collapseDirection: NavigationBarCollapseDirection = .scrollDown, additionalOffset: CGFloat = 0, scrollSearchBar: Bool = false, followers: [NavigationBarFollower] = []) {
+    savedNavBarTintColor = navigationBar.tintColor
     guard self.scrollableView == nil else {
       // Restore previous state. UIKit restores the navbar to its full height on view changes (e.g. during a modal presentation), so we need to restore the status once UIKit is done
       switch previousState {
@@ -237,6 +241,7 @@ open class ScrollingNavigationController: UINavigationController, UIGestureRecog
     delayDistance = CGFloat(delay)
     scrollingEnabled = true
     self.additionalOffset = additionalOffset
+    self.scrollSearchBar = scrollSearchBar
     
     // Save TabBar state (the state is changed during the transition and restored on compeltion)
     if let tab = followers.map({ $0.view }).first(where: { $0 is UITabBar }) as? UITabBar {
@@ -354,6 +359,13 @@ open class ScrollingNavigationController: UINavigationController, UIGestureRecog
     center.removeObserver(self, name: UIDevice.orientationDidChangeNotification, object: nil)
   }
   
+  /**
+  The app needs to call navBarTintUpdated() after setting a new value for navigationBar.tintColor (or the new tintColor value will not take effect)
+  */
+  open func navBarTintUpdated() {
+    savedNavBarTintColor = navigationBar.tintColor
+  }
+  
   // MARK: - Gesture recognizer
   
   func handlePan(_ gesture: UIPanGestureRecognizer) {
@@ -364,7 +376,7 @@ open class ScrollingNavigationController: UINavigationController, UIGestureRecog
       let translation = gesture.translation(in: superview)
       let delta = (lastContentOffset - translation.y) / scrollSpeedFactor
       
-      if !checkSearchController(delta) {
+      if !scrollSearchBar, !checkSearchController(delta) {
         lastContentOffset = translation.y
         return
       }
@@ -633,33 +645,33 @@ open class ScrollingNavigationController: UINavigationController, UIGestureRecog
   private func updateNavbarAlpha() {
     guard let navigationItem = topViewController?.navigationItem else { return }
     
-    _ = navigationBar.frame
-    
     // Change the alpha channel of every item on the navbr
     let alpha = 1 - percentage
     
-    // Hide all the possible titles
+    // Hide all the possible titles (See #398)
     if #available(iOS 13.0, *) {
-        if let color = navigationBar.scrollEdgeAppearance?.titleTextAttributes [NSAttributedString.Key.foregroundColor] as? UIColor {
-            navigationBar.scrollEdgeAppearance?.titleTextAttributes [NSAttributedString.Key.foregroundColor] = color.withAlphaComponent(alpha)
-        }
-        
-        if let color = navigationBar.standardAppearance.titleTextAttributes [NSAttributedString.Key.foregroundColor] as? UIColor {
-            navigationBar.standardAppearance.titleTextAttributes [NSAttributedString.Key.foregroundColor] = color.withAlphaComponent(alpha)
-        }
-        
-        if let color = navigationBar.compactAppearance?.titleTextAttributes [NSAttributedString.Key.foregroundColor] as? UIColor {
-            navigationBar.compactAppearance?.titleTextAttributes [NSAttributedString.Key.foregroundColor] = color.withAlphaComponent(alpha)
-        }
-    } else {
-        // Fallback on earlier versions
+      if let color = navigationBar.scrollEdgeAppearance?.titleTextAttributes[NSAttributedString.Key.foregroundColor] as? UIColor {
+        navigationBar.scrollEdgeAppearance?.titleTextAttributes[NSAttributedString.Key.foregroundColor] = color.withAlphaComponent(alpha)
+      }
+
+      // NOTE: this breaks the tintColor, it's disabled for the time being
+//      if let color = navigationBar.standardAppearance.titleTextAttributes[NSAttributedString.Key.foregroundColor] as? UIColor {
+//        navigationBar.standardAppearance.titleTextAttributes[NSAttributedString.Key.foregroundColor] = color.withAlphaComponent(alpha)
+//      }
+      
+      if let color = navigationBar.compactAppearance?.titleTextAttributes[NSAttributedString.Key.foregroundColor] as? UIColor {
+        navigationBar.compactAppearance?.titleTextAttributes[NSAttributedString.Key.foregroundColor] = color.withAlphaComponent(alpha)
+      }
     }
     navigationItem.titleView?.alpha = alpha
-    navigationBar.tintColor = navigationBar.tintColor.withAlphaComponent(alpha)
+    navigationBar.tintColor = savedNavBarTintColor?.withAlphaComponent(alpha)
     navigationItem.leftBarButtonItem?.tintColor = navigationItem.leftBarButtonItem?.tintColor?.withAlphaComponent(alpha)
     navigationItem.rightBarButtonItem?.tintColor = navigationItem.rightBarButtonItem?.tintColor?.withAlphaComponent(alpha)
     navigationItem.leftBarButtonItems?.forEach { $0.tintColor = $0.tintColor?.withAlphaComponent(alpha) }
     navigationItem.rightBarButtonItems?.forEach { $0.tintColor = $0.tintColor?.withAlphaComponent(alpha) }
+    if #available(iOS 11.0, *) {
+      navigationItem.searchController?.searchBar.alpha = alpha
+    }
     if let titleColor = navigationBar.titleTextAttributes?[NSAttributedString.Key.foregroundColor] as? UIColor {
       navigationBar.titleTextAttributes?[NSAttributedString.Key.foregroundColor] = titleColor.withAlphaComponent(alpha)
     } else {
@@ -685,9 +697,9 @@ open class ScrollingNavigationController: UINavigationController, UIGestureRecog
     
     func setAlphaOfSubviews(view: UIView, alpha: CGFloat) {
       if let label = view as? UILabel {
-        label.textColor = label.textColor.withAlphaComponent(alpha)
+        label.textColor = label.textColor == .clear ? .clear : label.textColor.withAlphaComponent(alpha)
       } else if let label = view as? UITextField {
-        label.textColor = label.textColor?.withAlphaComponent(alpha)
+        label.textColor = label.textColor == .clear ? .clear : label.textColor?.withAlphaComponent(alpha)
       } else if view.classForCoder == NSClassFromString("_UINavigationBarContentView") {
         // do nothing
       } else {
@@ -729,7 +741,8 @@ open class ScrollingNavigationController: UINavigationController, UIGestureRecog
    UIGestureRecognizerDelegate function. Begin scrolling only if the direction is vertical (prevents conflicts with horizontal scroll views)
    */
   open func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
-    guard let gestureRecognizer = gestureRecognizer as? UIPanGestureRecognizer else { return true }
+    // Default system behavior returns `true`
+    guard gestureRecognizer == self.gestureRecognizer, let gestureRecognizer = gestureRecognizer as? UIPanGestureRecognizer else { return true }
     let velocity = gestureRecognizer.velocity(in: gestureRecognizer.view)
     return abs(velocity.y) > abs(velocity.x)
   }
@@ -738,6 +751,8 @@ open class ScrollingNavigationController: UINavigationController, UIGestureRecog
    UIGestureRecognizerDelegate function. Enables the scrolling of both the content and the navigation bar
    */
   open func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+    // Default system behavior returns `false`
+    guard [gestureRecognizer, otherGestureRecognizer].contains(self.gestureRecognizer) else { return false }
     return true
   }
   
@@ -745,11 +760,13 @@ open class ScrollingNavigationController: UINavigationController, UIGestureRecog
    UIGestureRecognizerDelegate function. Only scrolls the navigation bar with the content when `scrollingEnabled` is true
    */
   open func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+    // Default system behavior returns `true`
+    guard gestureRecognizer == self.gestureRecognizer else { return true }
     return scrollingEnabled
   }
   
   deinit {
     NotificationCenter.default.removeObserver(self)
   }
-  
+
 }

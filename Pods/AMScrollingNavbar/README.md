@@ -3,8 +3,7 @@
 </p>
 
 [![CocoaPods](https://cocoapod-badges.herokuapp.com/v/AMScrollingNavbar/badge.svg)](http://www.cocoapods.org/?q=amscrollingnavbar)
-[![Build Status](https://travis-ci.org/andreamazz/AMScrollingNavbar.svg)](https://travis-ci.org/andreamazz/AMScrollingNavbar)
-[![codecov.io](https://codecov.io/github/andreamazz/AMScrollingNavbar/coverage.svg?branch=master)](https://codecov.io/github/andreamazz/AMScrollingNavbar?branch=master)
+![Build status](https://github.com/andreamazz/AMScrollingNavbar/workflows/Test%20suite/badge.svg)
 [![Carthage compatible](https://img.shields.io/badge/Carthage-compatible-4BC51D.svg?style=flat)](https://github.com/Carthage/Carthage)
 ![Swift 5](https://img.shields.io/badge/swift-5-orange.svg)
 [![Join the chat at https://gitter.im/andreamazz/AMScrollingNavbar](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/andreamazz/AMScrollingNavbar?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
@@ -170,6 +169,16 @@ You can control the speed of the scrolling using the `scrollSpeedFactor` optiona
 
 ```swift
 controller.followScrollView(view, delay: 0, scrollSpeedFactor: 2)
+```
+
+Check out the sample project for more details.
+
+## Changing UINavigationBar.tintColor
+AMScrollingNavBar maintains its own copy of the UINavigationBar's `tintColor` property. You need to notify the AMScrollingNavBar of a tint change by calling `navBarTintUpdated()`:
+
+```swift
+navigationBar.tintColor = UIColor.red
+controller.navBarTintUpdated()
 ```
 
 Check out the sample project for more details.

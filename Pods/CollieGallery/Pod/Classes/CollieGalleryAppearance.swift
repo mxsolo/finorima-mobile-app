@@ -27,7 +27,7 @@ import UIKit
 open class CollieGalleryAppearance: NSObject {
     
     /// Shared appearance between all new instances of the gallery
-    public static var sharedAppearance = CollieGalleryAppearance()
+    open static var sharedAppearance = CollieGalleryAppearance()
     
     /// The background color of the gallery
     var backgroundColor = UIColor.black

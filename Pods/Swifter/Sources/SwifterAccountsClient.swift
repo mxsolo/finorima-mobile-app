@@ -31,7 +31,6 @@ import Social
 
 internal class AccountsClient: SwifterClientProtocol {
     
-    
     var credential: Credential?
     
     init(account: ACAccount) {
@@ -39,11 +38,63 @@ internal class AccountsClient: SwifterClientProtocol {
     }
     
     func get(_ path: String, baseURL: TwitterURL, parameters: [String: Any], uploadProgress: HTTPRequest.UploadProgressHandler?, downloadProgress: HTTPRequest.DownloadProgressHandler?, success: HTTPRequest.SuccessHandler?, failure: HTTPRequest.FailureHandler?) -> HTTPRequest {
-        return HTTPRequest(request: URLRequest(url: URL(string: "")!));
+        let url = URL(string: path, relativeTo: baseURL.url)
+        
+        let stringifiedParameters = parameters.stringifiedDictionary()
+        
+        let socialRequest = SLRequest(forServiceType: SLServiceTypeTwitter, requestMethod: .GET, url: url, parameters: stringifiedParameters)!
+        socialRequest.account = self.credential!.account!
+        
+        let request = HTTPRequest(request: socialRequest.preparedURLRequest())
+        request.parameters = parameters
+        request.downloadProgressHandler = downloadProgress
+        request.successHandler = success
+        request.failureHandler = failure
+        
+        request.start()
+        return request
     }
     
-    func post(_ path: String, baseURL: TwitterURL, parameters: [String : Any], uploadProgress: HTTPRequest.UploadProgressHandler?, downloadProgress: HTTPRequest.DownloadProgressHandler?, success: HTTPRequest.SuccessHandler?, failure: HTTPRequest.FailureHandler?) -> HTTPRequest {
-        return HTTPRequest(request: URLRequest(url: URL(string: "")!));
+    func post(_ path: String, baseURL: TwitterURL, parameters: [String: Any], uploadProgress: HTTPRequest.UploadProgressHandler?, downloadProgress: HTTPRequest.DownloadProgressHandler?, success: HTTPRequest.SuccessHandler?, failure: HTTPRequest.FailureHandler?) -> HTTPRequest {
+        let url = URL(string: path, relativeTo: baseURL.url)
+        
+        var params = parameters
+        
+        var postData: Data?
+        var postDataKey: String?
+        
+        if let keyString = params[Swifter.DataParameters.dataKey] as? String {
+            postDataKey = keyString
+            postData = params[keyString] as? Data
+            
+            params.removeValue(forKey: Swifter.DataParameters.dataKey)
+            params.removeValue(forKey: keyString)
+        }
+        
+        var postDataFileName: String?
+        if let fileName = params[Swifter.DataParameters.fileNameKey] as? String {
+            postDataFileName = fileName
+            params.removeValue(forKey: Swifter.DataParameters.fileNameKey)
+        }
+        
+        let stringifiedParameters = params.stringifiedDictionary()
+        
+        let socialRequest = SLRequest(forServiceType: SLServiceTypeTwitter, requestMethod: .POST, url: url, parameters: stringifiedParameters)!
+        socialRequest.account = self.credential!.account!
+        
+        if let data = postData {
+            let fileName = postDataFileName ?? "media.jpg"
+            socialRequest.addMultipartData(data, withName: postDataKey!, type: "application/octet-stream", filename: fileName)
+        }
+        
+        let request = HTTPRequest(request: socialRequest.preparedURLRequest())
+        request.parameters = parameters
+        request.downloadProgressHandler = downloadProgress
+        request.successHandler = success
+        request.failureHandler = failure
+        
+        request.start()
+        return request
     }
     
     func delete(_ path: String,
@@ -51,7 +102,20 @@ internal class AccountsClient: SwifterClientProtocol {
                 parameters: [String: Any],
                 success: HTTPRequest.SuccessHandler?,
                 failure: HTTPRequest.FailureHandler?) -> HTTPRequest {
-        return HTTPRequest(request:URLRequest(url: URL(string: "")!));
+        let url = URL(string: path, relativeTo: baseURL.url)
+        
+        let stringifiedParameters = parameters.stringifiedDictionary()
+        
+        let socialRequest = SLRequest(forServiceType: SLServiceTypeTwitter, requestMethod: .DELETE, url: url, parameters: stringifiedParameters)!
+        socialRequest.account = self.credential!.account!
+        
+        let request = HTTPRequest(request: socialRequest.preparedURLRequest())
+        request.parameters = parameters
+        request.successHandler = success
+        request.failureHandler = failure
+        
+        request.start()
+        return request
     }
     
 }

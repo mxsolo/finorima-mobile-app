@@ -1,3 +1,7 @@
+# ⚠️ This project has been deprecated: https://github.com/mattdonnelly/Swifter/issues/360  ⚠️
+
+***
+
 <p align="center" >
   <img src="swifter_logo.png" alt="Swifter" title="Swifter" width="563">
 </p>
